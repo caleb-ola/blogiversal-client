@@ -1,0 +1,34 @@
+name: CICD
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: [self-hosted]
+    steps:
+      - name: checkout source
+        uses: actions/checkout@v3
+
+      - name: Login to docker hub
+        run: echo ${{secrets.DOCKER_PASSWORD}} | sudo docker login -u ${{secrets.DOCKER_USERNAME}} --password-stdin
+
+      - name: Build docker image
+        run: sudo docker build -t ${{secrets.DOCKER_USERNAME}}/blogiversal-client .
+
+      - name: Publish image to docker hub
+        run: sudo docker push ${{secrets.DOCKER_USERNAME}}/blogiversal-client:latest
+
+  deploy:
+    needs: build
+    runs-on: [self-hosted]
+    steps:
+      - name: Pull image from docker hub
+        run: sudo docker pull ${{secrets.DOCKER_USERNAME}}/blogiversal-client:latest
+
+      - name: Delete old containers
+        run: sudo docker rm -f blogiversal-client-container
+
+      - name: Run docker container
+        run: sudo docker run --name blogiversal-client-container -d -p 3000:3000 ${{secrets.DOCKER_USERNAME}}/blogiversal-client:latest
